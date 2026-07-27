@@ -42,8 +42,8 @@ kubectl rollout status statefulset/argocd-application-controller \
 render() {
   local file="$1"
   sed \
-    -e "s|__GITOPS_REPO_URL__|${GITOPS_REPO_URL}|g" \
-    -e "s|__GITOPS_REVISION__|${GITOPS_REVISION}|g" \
+    -e "s|https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops|${GITOPS_REPO_URL}|g" \
+    -e "s|main|${GITOPS_REVISION}|g" \
     "${file}"
 }
 

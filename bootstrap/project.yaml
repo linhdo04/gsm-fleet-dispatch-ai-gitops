@@ -8,7 +8,7 @@ metadata:
 spec:
   description: Fleet Dispatch GitOps applications
   sourceRepos:
-    - __GITOPS_REPO_URL__
+    - https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops
   destinations:
     - namespace: argocd
       server: https://kubernetes.default.svc

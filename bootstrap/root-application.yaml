@@ -8,8 +8,8 @@ metadata:
 spec:
   project: fleet-dispatch-gitops
   source:
-    repoURL: __GITOPS_REPO_URL__
-    targetRevision: __GITOPS_REVISION__
+    repoURL: https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops
+    targetRevision: main
     path: applications
     kustomize:
       patches:
@@ -20,10 +20,10 @@ spec:
           patch: |-
             - op: replace
               path: /spec/source/repoURL
-              value: __GITOPS_REPO_URL__
+              value: https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops
             - op: replace
               path: /spec/source/targetRevision
-              value: __GITOPS_REVISION__
+              value: main
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
