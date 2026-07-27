@@ -95,9 +95,8 @@ a trusted operator machine.
 Run this only after the GitOps bundle has been pushed:
 
 ```bash
-GITOPS_REPO_URL=https://github.com/OWNER/fleet-dispatch-gitops.git \
-GITOPS_REVISION=main \
-./bootstrap/install.sh
+kubectl apply -f bootstrap/project.yaml
+kubectl apply -f bootstrap/root-application.yaml
 ```
 
 The script is idempotent. It creates the `argocd` namespace, server-side applies
@@ -146,7 +145,6 @@ curl --fail http://VM_PUBLIC_IP/api/v1/health/ready
 kubectl kustomize apps/fleet-dispatch/base >/dev/null
 kubectl kustomize apps/fleet-dispatch/overlays/production >/dev/null
 kubectl kustomize applications >/dev/null
-shellcheck bootstrap/install.sh
 ```
 
 The repository CI also runs Kustomize rendering, `kubeconform`, and ShellCheck.
