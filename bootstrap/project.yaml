@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: fleet-dispatch-gitops
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Fleet Dispatch GitOps applications
+  sourceRepos:
+    - __GITOPS_REPO_URL__
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: fleet-dispatch
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

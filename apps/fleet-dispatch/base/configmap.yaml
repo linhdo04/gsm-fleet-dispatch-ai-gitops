@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fleet-dispatch-backend-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  APP_ENVIRONMENT: production
+  APP_DEBUG: "false"
+  APP_LOG_LEVEL: INFO
+  APP_LOG_FORMAT: json
+  APP_DOCS_ENABLED: "false"
+  APP_CORS_ORIGINS: '[]'
+  APP_TRUSTED_HOSTS: '["*"]'
+  APP_OTEL_ENABLED: "false"

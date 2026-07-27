@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-dispatch-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: fleet-dispatch-gitops
+  source:
+    repoURL: __GITOPS_REPO_URL__
+    targetRevision: __GITOPS_REVISION__
+    path: applications
+    kustomize:
+      patches:
+        - target:
+            group: argoproj.io
+            version: v1alpha1
+            kind: Application
+          patch: |-
+            - op: replace
+              path: /spec/source/repoURL
+              value: __GITOPS_REPO_URL__
+            - op: replace
+              path: /spec/source/targetRevision
+              value: __GITOPS_REVISION__
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

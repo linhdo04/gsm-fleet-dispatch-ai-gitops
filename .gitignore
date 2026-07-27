@@ -1,0 +1,9 @@
+# Local secret values; only the example contract is committed.
+apps/**/app-secrets.env
+
+# Local render and downloaded bootstrap artifacts.
+.rendered/
+bootstrap/install.yaml
+
+# Cluster credentials must never be committed.
+*.kubeconfig
