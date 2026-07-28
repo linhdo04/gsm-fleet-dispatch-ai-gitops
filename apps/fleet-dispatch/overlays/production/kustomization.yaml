@@ -1,17 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   - ../../base
-
 images:
   - name: fleet-dispatch-backend
     newName: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/backend
-    newTag: d922b617841521f83e6a59d567dd35f4042a05b7
+    newTag: 3a4a135d4c17b6fd8a4dc6aec097bdfb126979ef
   - name: fleet-dispatch-frontend
     newName: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/frontend
     newTag: 8ea5e59584584b45b0a3ffebc9af1741f9847514
-
 replicas:
   - name: backend
     count: 1
