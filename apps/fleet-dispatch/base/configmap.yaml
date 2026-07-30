@@ -11,5 +11,9 @@ data:
   APP_LOG_FORMAT: json
   APP_DOCS_ENABLED: "false"
   APP_CORS_ORIGINS: '[]'
+  # TODO: Restrict to the actual domain (e.g. '["fleet.example.com"]') once a
+  #       hostname is configured in ingress.yaml. The wildcard currently allows
+  #       any Host header — this is safe only because the Ingress has no `host`
+  #       rule and accepts the node IP directly.
   APP_TRUSTED_HOSTS: '["*"]'
   APP_OTEL_ENABLED: "false"

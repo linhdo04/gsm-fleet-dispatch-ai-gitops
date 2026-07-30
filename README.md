@@ -92,21 +92,39 @@ a trusted operator machine.
 
 ## Bootstrap
 
-Run this only after the GitOps bundle has been pushed:
+Run this only after the GitOps bundle has been pushed.
+
+### 1. Install Argo CD
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/install.yaml
+```
+
+Wait for all controllers to become ready:
+
+```bash
+kubectl -n argocd wait --for=condition=Ready pods --all --timeout=120s
+```
+
+For a private Git repository, register the repository with Argo CD:
+
+```bash
+argocd repo add https://github.com/OWNER/REPO.git
+```
+
+### 2. Apply the AppProject and root Application
 
 ```bash
 kubectl apply -f bootstrap/project.yaml
 kubectl apply -f bootstrap/root-application.yaml
 ```
 
-The script is idempotent. It creates the `argocd` namespace, server-side applies
-the pinned upstream installation, waits for controllers, and applies the
-project/root Application. The root Application injects its repository URL and
-revision into every child Application at render time, so the placeholder in
-`applications/fleet-dispatch.yaml` is not used at runtime.
-
-For a private Git repository, install Argo CD, register the repository, then
-rerun the script. A first sync failure before registration is expected.
+The root Application injects its repository URL and revision into every child
+Application at render time, so the placeholder in
+`applications/fleet-dispatch.yaml` is not used at runtime. A first sync failure
+before repository registration is expected for private repos.
 
 ## Access and verify
 
@@ -169,6 +187,10 @@ The current Ingress has no `host`, so Traefik accepts the node IP/any Host
 header over HTTP. To add a domain, patch `spec.rules[0].host` in the production
 overlay and configure `spec.tls`. Store certificates outside Git or use a
 certificate controller such as cert-manager.
+
+When a domain is configured, also update `APP_TRUSTED_HOSTS` in
+`apps/fleet-dispatch/base/configmap.yaml` from the wildcard to the actual domain
+(e.g. `'["fleet.example.com"]'`).
 
 ## Troubleshooting and rollback
 

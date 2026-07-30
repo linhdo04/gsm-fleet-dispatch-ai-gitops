@@ -15,3 +15,6 @@ resources:
   - frontend-deployment.yaml
   - frontend-service.yaml
   - ingress.yaml
+  - network-policies.yaml
+  - pod-disruption-budgets.yaml
+  - resource-quota.yaml
