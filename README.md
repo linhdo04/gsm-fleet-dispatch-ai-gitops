@@ -192,6 +192,50 @@ When a domain is configured, also update `APP_TRUSTED_HOSTS` in
 `apps/fleet-dispatch/base/configmap.yaml` from the wildcard to the actual domain
 (e.g. `'["fleet.example.com"]'`).
 
+## Horizontal Pod Autoscaler (backend)
+
+The backend Deployment is configured with a HorizontalPodAutoscaler (HPA) using
+`autoscaling/v2`:
+
+| Field        | Value                        |
+|--------------|------------------------------|
+| Metric       | CPU utilization at 70%       |
+| Min replicas | 1                            |
+| Max replicas | 3                            |
+| Scale-up     | Immediate (0s stabilization) |
+| Scale-down   | 300s cooldown                |
+
+The HPA target CPU utilization is calculated against the backend's
+`requests.cpu` (100m). The frontend is **not** auto-scaled — its single replica
+is managed by the Kustomize production overlay.
+
+### Requirements
+
+- The cluster must have a functional **Metrics API**. K3s ships with
+  `metrics-server` disabled by default; enable it with:
+  ```bash
+  kubectl edit configmap -n kube-system metrics-server-config
+  ```
+  or check that `kubectl top nodes` returns data.
+- The backend Deployment must have a CPU `request` set (100m in base).
+
+### Verification
+
+```bash
+kubectl -n fleet-dispatch get hpa backend             # targets, current, min/max
+kubectl -n fleet-dispatch describe hpa backend         # conditions and events
+kubectl -n fleet-dispatch top pod backend-<hash>       # current CPU/Mem
+```
+
+### Argo CD integration
+
+Because Argo CD manages `Deployment.spec.replicas` through Kustomize but HPA
+needs to modify it at runtime, the `applications/fleet-dispatch.yaml` manifest
+includes an `ignoreDifferences` rule that prevents Argo CD from detecting drift
+on the `backend` Deployment's replica count. The sync option
+`RespectIgnoreDifferences=true` ensures self-heal does not overwrite HPA-driven
+changes.
+
 ## Troubleshooting and rollback
 
 - `ImagePullBackOff`: check the VM service account role/scope, verify
