@@ -8,7 +8,7 @@ images:
     newTag: 2375b551574774a1fb7d88965fec915be650e9d4
   - name: fleet-dispatch-frontend
     newName: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/frontend
-    newTag: 3a4a135d4c17b6fd8a4dc6aec097bdfb126979ef
+    newTag: 9cc02774d779347a8024bf3c97c63f9ce552720e
 replicas:
   - name: frontend
     count: 1
