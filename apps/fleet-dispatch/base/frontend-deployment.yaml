@@ -63,8 +63,12 @@ spec:
               cpu: 250m
               memory: 256Mi
           volumeMounts:
-            - name: tmp
-              mountPath: /tmp
+            - name: nginx-tmp
+              mountPath: /var/lib/nginx/tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -72,6 +76,12 @@ spec:
                 - ALL
             readOnlyRootFilesystem: true
       volumes:
-        - name: tmp
+        - name: nginx-tmp
           emptyDir:
-            sizeLimit: 64Mi
+            sizeLimit: 16Mi
+        - name: nginx-cache
+          emptyDir:
+            sizeLimit: 32Mi
+        - name: nginx-run
+          emptyDir:
+            sizeLimit: 8Mi
