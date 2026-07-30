@@ -68,7 +68,7 @@ spec:
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run
-              mountPath: /var/run
+              mountPath: /run
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
