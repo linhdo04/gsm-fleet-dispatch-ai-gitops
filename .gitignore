@@ -7,3 +7,6 @@ bootstrap/install.yaml
 
 # Cluster credentials must never be committed.
 *.kubeconfig
+
+# Claude Code local workspace files.
+.claude/
