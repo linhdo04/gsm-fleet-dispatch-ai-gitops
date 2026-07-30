@@ -5,7 +5,7 @@ resources:
 images:
   - name: fleet-dispatch-backend
     newName: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/backend
-    newTag: a91b380128493b05d5d4a5e58f75d59aed03728c
+    newTag: c66371be6ff8ec83b3fc22d3fde032ce7892f61a
   - name: fleet-dispatch-frontend
     newName: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/frontend
     newTag: c66371be6ff8ec83b3fc22d3fde032ce7892f61a
