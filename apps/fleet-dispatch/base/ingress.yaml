@@ -4,12 +4,13 @@ metadata:
   name: fleet-dispatch
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: traefik
   tls:
     - hosts:
         - docker-linhdt.site
-      secretName: cloudflare-origin-tls
+      secretName: docker-linhdt-tls
   rules:
     - host: docker-linhdt.site
       http:
