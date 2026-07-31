@@ -6,6 +6,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - docker-linhdt.site
+      secretName: cloudflare-origin-tls
   rules:
     - host: docker-linhdt.site
       http:
