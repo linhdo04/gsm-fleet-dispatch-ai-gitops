@@ -17,12 +17,37 @@ spec:
             group: argoproj.io
             version: v1alpha1
             kind: Application
+            name: cert-manager-config
           patch: |-
             - op: replace
               path: /spec/source/repoURL
               value: https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops
             - op: replace
               path: /spec/source/targetRevision
+              value: main
+        - target:
+            group: argoproj.io
+            version: v1alpha1
+            kind: Application
+            name: fleet-dispatch
+          patch: |-
+            - op: replace
+              path: /spec/source/repoURL
+              value: https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops
+            - op: replace
+              path: /spec/source/targetRevision
+              value: main
+        - target:
+            group: argoproj.io
+            version: v1alpha1
+            kind: Application
+            name: monitoring
+          patch: |-
+            - op: replace
+              path: /spec/sources/1/repoURL
+              value: https://github.com/linhdo04/gsm-fleet-dispatch-ai-gitops
+            - op: replace
+              path: /spec/sources/1/targetRevision
               value: main
   destination:
     server: https://kubernetes.default.svc

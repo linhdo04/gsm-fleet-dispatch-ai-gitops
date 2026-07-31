@@ -12,15 +12,11 @@ spec:
   destinations:
     - namespace: argocd
       server: https://kubernetes.default.svc
-    - namespace: cert-manager
-      server: https://kubernetes.default.svc
     - namespace: fleet-dispatch
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
-    - group: cert-manager.io
-      kind: ClusterIssuer
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

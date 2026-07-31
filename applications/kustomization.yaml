@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - cert-manager-config.yaml
   - fleet-dispatch.yaml
+  - monitoring.yaml
