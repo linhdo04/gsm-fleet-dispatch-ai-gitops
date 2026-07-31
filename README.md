@@ -23,6 +23,7 @@ instead of exposing it over unauthenticated HTTP.
 ```text
 bootstrap/                         one-time Argo CD installation and root app
 applications/                      child Argo CD Applications
+infrastructure/cert-manager/       cluster-wide certificate issuers
 apps/fleet-dispatch/base/          reusable Kubernetes resources
 apps/fleet-dispatch/overlays/production/
                                    production image tags and replica counts
@@ -40,8 +41,13 @@ repository root.
    The accompanying Terraform/Ansible configuration grants the VM identity
    `roles/artifactregistry.reader`. A kubelet exec credential provider obtains
    short-lived access tokens from the GCE metadata server when images are pulled.
-4. `kubectl` and `curl` installed on the machine running bootstrap.
-5. A GitOps repository URL that Argo CD can read.
+4. cert-manager and its CRDs installed in the `cert-manager` namespace. Wait for
+   its controller, webhook, and CA injector to become ready before syncing the
+   child Applications.
+5. A Cloudflare API token with `Zone:DNS:Edit` and `Zone:Zone:Read` permissions
+   for `docker-linhdt.site`.
+6. `kubectl` and `curl` installed on the machine running bootstrap.
+7. A GitOps repository URL that Argo CD can read.
 
 The image tags in
 `apps/fleet-dispatch/overlays/production/kustomization.yaml` are immutable
@@ -68,6 +74,23 @@ kubectl -n fleet-dispatch create secret generic fleet-dispatch-api-keys \
 
 The real `app-secrets.env` is ignored. The Secret is deliberately absent from
 Kustomize, so Argo CD does not own or prune it. Empty keys may be omitted.
+
+## Create the Cloudflare DNS secret
+
+The ClusterIssuers reference `cloudflare-api-token-secret` in cert-manager's
+cluster resource namespace, which is `cert-manager` for the standard
+installation. Create it directly in the cluster before Argo CD syncs
+`cert-manager-config`:
+
+```bash
+kubectl -n cert-manager create secret generic cloudflare-api-token-secret \
+  --from-literal=api-token='REPLACE_WITH_CLOUDFLARE_API_TOKEN'
+```
+
+`infrastructure/cert-manager/cloudflare-api-token-secret.yaml.example` documents
+the required Secret name and key but is deliberately excluded from the
+Kustomization. Never replace its placeholder with a real token or commit a live
+Secret manifest.
 
 ## Move this bundle to its own repository
 
@@ -122,9 +145,11 @@ kubectl apply -f bootstrap/root-application.yaml
 ```
 
 The root Application injects its repository URL and revision into every child
-Application at render time, so the placeholder in
-`applications/fleet-dispatch.yaml` is not used at runtime. A first sync failure
-before repository registration is expected for private repos.
+Application at render time, so the placeholders in `applications/*.yaml` are
+not used at runtime. It syncs `cert-manager-config` before `fleet-dispatch`, but
+cert-manager itself, its CRDs, the `cert-manager` namespace, and the Cloudflare
+Secret must already exist. A first sync failure before repository registration
+is expected for private repos.
 
 ## Access and verify
 
@@ -181,16 +206,32 @@ A later CI improvement can open this pull request automatically. It should not
 write directly to the cluster and should not replace immutable tags with
 `latest`.
 
-## Domain and TLS later
+## Domain and TLS
 
-The current Ingress has no `host`, so Traefik accepts the node IP/any Host
-header over HTTP. To add a domain, patch `spec.rules[0].host` in the production
-overlay and configure `spec.tls`. Store certificates outside Git or use a
-certificate controller such as cert-manager.
+The Ingress serves `docker-linhdt.site` through Traefik and requests the
+`docker-linhdt-tls` Secret from the `letsencrypt-prod` ClusterIssuer. Argo CD
+manages the staging and production ClusterIssuers through the separate
+`cert-manager-config` Application; it does not install cert-manager or manage
+the Cloudflare API token.
 
-When a domain is configured, also update `APP_TRUSTED_HOSTS` in
-`apps/fleet-dispatch/base/configmap.yaml` from the wildcard to the actual domain
-(e.g. `'["fleet.example.com"]'`).
+Verify certificate issuance with:
+
+```bash
+kubectl get clusterissuer letsencrypt-staging letsencrypt-prod
+kubectl -n fleet-dispatch get certificate,certificaterequest,challenge
+kubectl -n fleet-dispatch get secret docker-linhdt-tls
+curl --fail https://docker-linhdt.site/healthz
+```
+
+When changing the DNS-01 solver, temporarily set the Ingress annotation to
+`letsencrypt-staging` and validate issuance before returning to
+`letsencrypt-prod`; this avoids Let's Encrypt production rate limits. Inspect
+`kubectl describe clusterissuer`, the Certificate resources, and cert-manager
+controller logs when a DNS challenge does not become ready.
+
+`APP_TRUSTED_HOSTS` in `apps/fleet-dispatch/base/configmap.yaml` is still a
+wildcard and should be restricted to `docker-linhdt.site` in a separate
+application configuration change.
 
 ## Horizontal Pod Autoscaler (backend)
 
