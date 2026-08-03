@@ -38,19 +38,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: fleet-dispatch-backend-config
-          env:
-            - name: GOOGLE_ROUTES_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: fleet-dispatch-api-keys
-                  key: GOOGLE_ROUTES_API_KEY
-                  optional: true
-            - name: GOOGLE_GEOCODING_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: fleet-dispatch-api-keys
-                  key: GOOGLE_GEOCODING_API_KEY
-                  optional: true
           startupProbe:
             httpGet:
               path: /api/v1/health/live
