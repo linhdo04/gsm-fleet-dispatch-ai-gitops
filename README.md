@@ -7,11 +7,8 @@ when that repository is ready.
 ## What it deploys
 
 - Argo CD `v3.4.5`, installed from the pinned upstream manifest.
-- Application and platform `AppProject` resources plus a root Application
-  (app-of-apps).
+- An `AppProject` and root Application (app-of-apps).
 - Stateless backend and frontend Deployments on K3s.
-- `kube-prometheus-stack` `87.18.1` managed by Argo CD, including Prometheus,
-  Grafana, Alertmanager, kube-state-metrics, and node-exporter.
 - ClusterIP Services and a host-neutral Traefik Ingress:
   - `/api` routes to the backend on port `8000`.
   - `/` routes to the frontend on port `8080`.
@@ -27,7 +24,6 @@ instead of exposing it over unauthenticated HTTP.
 bootstrap/                         one-time Argo CD installation and root app
 applications/                      child Argo CD Applications
 infrastructure/cert-manager/       cluster-wide certificate issuers
-infrastructure/monitoring/         kube-prometheus-stack Helm values
 apps/fleet-dispatch/base/          reusable Kubernetes resources
 apps/fleet-dispatch/overlays/production/
                                    production image tags and replica counts
@@ -96,23 +92,6 @@ the required Secret name and key but is deliberately excluded from the
 Kustomization. Never replace its placeholder with a real token or commit a live
 Secret manifest.
 
-## Create the Grafana admin secret
-
-The monitoring chart reads Grafana credentials from an existing Secret. Create
-it before Argo CD syncs the `monitoring` Application:
-
-```bash
-kubectl create namespace monitoring \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n monitoring create secret generic grafana-admin-credentials \
-  --from-literal=admin-user=admin \
-  --from-literal=admin-password='REPLACE_WITH_A_STRONG_PASSWORD'
-```
-
-`infrastructure/monitoring/grafana-admin-secret.yaml.example` documents the
-required keys. The live `grafana-admin-secret.yaml` path is ignored by Git and
-is not managed or pruned by Argo CD.
-
 ## Move this bundle to its own repository
 
 From a clone of the application repository:
@@ -158,25 +137,19 @@ For a private Git repository, register the repository with Argo CD:
 argocd repo add https://github.com/OWNER/REPO.git
 ```
 
-### 2. Apply the AppProjects and root Application
+### 2. Apply the AppProject and root Application
 
 ```bash
 kubectl apply -f bootstrap/project.yaml
-kubectl apply -f bootstrap/platform-project.yaml
 kubectl apply -f bootstrap/root-application.yaml
 ```
 
-The root Application injects its repository URL and revision into the Git source
-of every child Application. For `monitoring`, it only patches the second source
-that supplies Helm values; the pinned upstream chart source remains unchanged.
-The placeholders in `applications/*.yaml` are therefore not used at runtime.
-
-The platform project must exist before the root Application creates
-`cert-manager-config` and `monitoring`. cert-manager itself, its CRDs, the
-`cert-manager` namespace, and the Cloudflare Secret must already exist. The
-monitoring Application creates its namespace, but the Grafana credentials
-Secret should be provisioned first. A first sync failure before repository
-registration is expected for private repos.
+The root Application injects its repository URL and revision into every child
+Application at render time, so the placeholders in `applications/*.yaml` are
+not used at runtime. It syncs `cert-manager-config` before `fleet-dispatch`, but
+cert-manager itself, its CRDs, the `cert-manager` namespace, and the Cloudflare
+Secret must already exist. A first sync failure before repository registration
+is expected for private repos.
 
 ## Access and verify
 
@@ -259,40 +232,6 @@ controller logs when a DNS challenge does not become ready.
 `APP_TRUSTED_HOSTS` in `apps/fleet-dispatch/base/configmap.yaml` is still a
 wildcard and should be restricted to `docker-linhdt.site` in a separate
 application configuration change.
-
-## Monitoring
-
-Argo CD installs the pinned `kube-prometheus-stack` chart using
-`infrastructure/monitoring/values.yaml`. The initial profile targets the current
-single-node K3s cluster with 2 vCPU and about 4 GiB RAM:
-
-- Prometheus retains seven days of metrics in a 10 GiB `local-path` PVC.
-- Grafana uses a 2 GiB PVC and credentials from
-  `grafana-admin-credentials`.
-- Alertmanager uses a 2 GiB PVC with five-day retention.
-- K3s control-plane scrapers that are not exposed by default are disabled to
-  avoid permanently failing targets.
-- Grafana Ingress is disabled; use port-forwarding instead.
-
-Because `local-path` storage is node-local and uses a `Delete` reclaim policy,
-this setup is not highly available and does not protect monitoring history from
-node or PVC deletion. Use replicated storage and backups before treating the
-metrics as durable production data.
-
-Check the stack after Argo CD syncs it:
-
-```bash
-kubectl -n argocd get application monitoring
-kubectl get crd | grep monitoring.coreos.com
-kubectl -n monitoring get pods,pvc
-kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80
-```
-
-Open `http://localhost:3000` and use the credentials from the externally managed
-Secret. Prometheus is configured to discover `ServiceMonitor`, `PodMonitor`, and
-`PrometheusRule` resources across namespaces. Fleet Dispatch business metrics
-still require the backend to expose a Prometheus endpoint and a separate
-`ServiceMonitor`.
 
 ## Horizontal Pod Autoscaler (backend)
 

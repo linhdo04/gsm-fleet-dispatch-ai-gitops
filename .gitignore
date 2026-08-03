@@ -8,7 +8,6 @@ bootstrap/install.yaml
 # Cluster credentials must never be committed.
 *.kubeconfig
 infrastructure/cert-manager/cloudflare-api-token-secret.yaml
-infrastructure/monitoring/grafana-admin-secret.yaml
 
 # Claude Code local workspace files.
 .claude/
