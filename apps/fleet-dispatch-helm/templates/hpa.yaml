@@ -1,0 +1,41 @@
+{{- if .Values.backend.autoscaling.enabled }}
+{{- if gt (int .Values.backend.autoscaling.minReplicas) (int .Values.backend.autoscaling.maxReplicas) }}
+{{- fail "backend.autoscaling.minReplicas must not exceed backend.autoscaling.maxReplicas" }}
+{{- end }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "fleet-dispatch.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: {{ .Values.backend.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.backend.autoscaling.maxReplicas }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: {{ .Values.backend.autoscaling.scaleUp.stabilizationWindowSeconds }}
+      policies:
+        - type: Pods
+          value: {{ .Values.backend.autoscaling.scaleUp.value }}
+          periodSeconds: {{ .Values.backend.autoscaling.scaleUp.periodSeconds }}
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.backend.autoscaling.scaleDown.stabilizationWindowSeconds }}
+      policies:
+        - type: Pods
+          value: {{ .Values.backend.autoscaling.scaleDown.value }}
+          periodSeconds: {{ .Values.backend.autoscaling.scaleDown.periodSeconds }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.backend.autoscaling.averageUtilization }}
+{{- end }}

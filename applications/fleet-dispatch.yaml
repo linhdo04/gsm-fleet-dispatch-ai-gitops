@@ -13,7 +13,11 @@ spec:
     # The root Application patches these two bootstrap placeholders at render time.
     repoURL: https://example.invalid/fleet-dispatch-gitops.git
     targetRevision: main
-    path: apps/fleet-dispatch/overlays/production
+    path: apps/fleet-dispatch-helm
+    helm:
+      releaseName: fleet-dispatch
+      valueFiles:
+        - values-production.yaml
   ignoreDifferences:
     - group: apps
       kind: Deployment

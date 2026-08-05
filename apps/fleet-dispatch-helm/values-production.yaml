@@ -1,0 +1,15 @@
+backend:
+  image:
+    repository: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/backend
+    tag: 4c451ea19a961b43079534cf75af1e28db1e99e4
+
+frontend:
+  image:
+    repository: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/frontend
+    tag: 4c451ea19a961b43079534cf75af1e28db1e99e4
+  replicas: 1
+
+ingress:
+  host: docker-linhdt.site
+  tls:
+    secretName: docker-linhdt-tls

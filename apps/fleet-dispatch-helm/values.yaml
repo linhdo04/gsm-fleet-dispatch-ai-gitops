@@ -1,0 +1,97 @@
+global:
+  partOf: fleet-dispatch
+
+namespace:
+  create: true
+  podSecurityStandard: restricted
+
+backend:
+  replicas: 1
+  image:
+    repository: fleet-dispatch-backend
+    tag: ""
+    pullPolicy: IfNotPresent
+  port: 8000
+  config:
+    APP_ENVIRONMENT: production
+    APP_DEBUG: "false"
+    APP_LOG_LEVEL: INFO
+    APP_LOG_FORMAT: json
+    APP_DOCS_ENABLED: "false"
+    APP_CORS_ORIGINS: "[]"
+    APP_TRUSTED_HOSTS: '["*"]'
+    APP_OTEL_ENABLED: "false"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    averageUtilization: 70
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      periodSeconds: 60
+      value: 1
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      periodSeconds: 60
+      value: 1
+
+frontend:
+  replicas: 1
+  image:
+    repository: fleet-dispatch-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+ingress:
+  enabled: true
+  className: traefik
+  host: ""
+  clusterIssuer: letsencrypt-prod
+  tls:
+    enabled: true
+    secretName: ""
+
+networkPolicies:
+  enabled: true
+  ingressNamespace: kube-system
+  ingressControllerLabels:
+    app.kubernetes.io/name: traefik
+
+podDisruptionBudgets:
+  enabled: true
+  minAvailable: 1
+
+resourceQuota:
+  enabled: true
+  hard:
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+    persistentvolumeclaims: "0"
+    services: "10"
+    count/networkpolicies.networking.k8s.io: "10"
+
+limitRange:
+  enabled: true
+  default:
+    cpu: 500m
+    memory: 512Mi
+  defaultRequest:
+    cpu: 100m
+    memory: 128Mi

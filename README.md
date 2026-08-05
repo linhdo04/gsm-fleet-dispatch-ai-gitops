@@ -9,7 +9,7 @@ when that repository is ready.
 - Argo CD `v3.4.5`, installed from the pinned upstream manifest.
 - An `AppProject` and root Application (app-of-apps).
 - Stateless backend and frontend Deployments on K3s.
-- ClusterIP Services and a host-neutral Traefik Ingress:
+- ClusterIP Services and a host-based Traefik Ingress for `docker-linhdt.site`:
   - `/api` routes to the backend on port `8000`.
   - `/` routes to the frontend on port `8080`.
 - No PostgreSQL workload or Cloud SQL proxy. The current backend does not use a
@@ -24,9 +24,9 @@ instead of exposing it over unauthenticated HTTP.
 bootstrap/                         one-time Argo CD installation and root app
 applications/                      child Argo CD Applications
 infrastructure/cert-manager/       cluster-wide certificate issuers
-apps/fleet-dispatch/base/          reusable Kubernetes resources
-apps/fleet-dispatch/overlays/production/
-                                   production image tags and replica counts
+apps/fleet-dispatch-helm/          Fleet Dispatch Helm chart and defaults
+apps/fleet-dispatch-helm/values-production.yaml
+                                   production image tags and ingress values
 ```
 
 All paths in the Argo CD Applications are relative to this directory as a
@@ -46,13 +46,13 @@ repository root.
    child Applications.
 5. A Cloudflare API token with `Zone:DNS:Edit` and `Zone:Zone:Read` permissions
    for `docker-linhdt.site`.
-6. `kubectl` and `curl` installed on the machine running bootstrap.
+6. `kubectl`, Helm, and `curl` installed on the machine running bootstrap.
 7. A GitOps repository URL that Argo CD can read.
 
-The image tags in
-`apps/fleet-dispatch/overlays/production/kustomization.yaml` are immutable
-Git SHAs already built by the current application workflows. Update each tag
-only after its matching image exists in Artifact Registry; do not use `latest`.
+The `backend.image.tag` and `frontend.image.tag` values in
+`apps/fleet-dispatch-helm/values-production.yaml` are immutable Git SHAs already
+built by the application workflows. Update each tag only after its matching
+image exists in Artifact Registry; do not use `latest`.
 
 ## Create the application secret
 
@@ -62,18 +62,23 @@ back to Haversine routing. Geocoding returns 503 when its key is absent.
 Create the secret directly in the cluster so no plaintext value enters Git:
 
 ```bash
-cp apps/fleet-dispatch/overlays/production/app-secrets.env.example \
-  apps/fleet-dispatch/overlays/production/app-secrets.env
-# Edit app-secrets.env locally, then:
+cat > /tmp/fleet-dispatch-app-secrets.env <<'EOF'
+GOOGLE_ROUTES_API_KEY=
+GOOGLE_GEOCODING_API_KEY=
+EOF
+# Edit the temporary file locally, then:
 kubectl create namespace fleet-dispatch \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n fleet-dispatch create secret generic fleet-dispatch-api-keys \
-  --from-env-file=apps/fleet-dispatch/overlays/production/app-secrets.env \
+  --from-env-file=/tmp/fleet-dispatch-app-secrets.env \
   --dry-run=client -o yaml | kubectl apply -f -
+rm /tmp/fleet-dispatch-app-secrets.env
 ```
 
-The real `app-secrets.env` is ignored. The Secret is deliberately absent from
-Kustomize, so Argo CD does not own or prune it. Empty keys may be omitted.
+The Secret is deliberately absent from the Helm chart, so Argo CD does not own
+or prune it. Empty keys may be omitted. The current backend Deployment does not
+mount this Secret; connecting the optional integrations is a separate application
+configuration change.
 
 ## Create the Cloudflare DNS secret
 
@@ -88,8 +93,8 @@ kubectl -n cert-manager create secret generic cloudflare-api-token-secret \
 ```
 
 `infrastructure/cert-manager/cloudflare-api-token-secret.yaml.example` documents
-the required Secret name and key but is deliberately excluded from the
-Kustomization. Never replace its placeholder with a real token or commit a live
+the required Secret name and key but is deliberately excluded from the rendered
+resources. Never replace its placeholder with a real token or commit a live
 Secret manifest.
 
 ## Move this bundle to its own repository
@@ -177,20 +182,32 @@ kubectl -n fleet-dispatch rollout status deployment/backend
 kubectl -n fleet-dispatch rollout status deployment/frontend
 kubectl -n fleet-dispatch get pods,services,ingress
 
-curl --fail http://VM_PUBLIC_IP/healthz
-curl --fail http://VM_PUBLIC_IP/api/v1/health/live
-curl --fail http://VM_PUBLIC_IP/api/v1/health/ready
+curl --fail https://docker-linhdt.site/healthz
+curl --fail https://docker-linhdt.site/api/v1/health/live
+curl --fail https://docker-linhdt.site/api/v1/health/ready
 ```
 
 ## Validate before pushing
 
 ```bash
-kubectl kustomize apps/fleet-dispatch/base >/dev/null
-kubectl kustomize apps/fleet-dispatch/overlays/production >/dev/null
+helm lint apps/fleet-dispatch-helm \
+  -f apps/fleet-dispatch-helm/values-production.yaml
+helm template fleet-dispatch apps/fleet-dispatch-helm \
+  -f apps/fleet-dispatch-helm/values-production.yaml \
+  --namespace fleet-dispatch >/dev/null
 kubectl kustomize applications >/dev/null
 ```
 
-The repository CI also runs Kustomize rendering, `kubeconform`, and ShellCheck.
+If `kubeconform` is available, validate the rendered chart before pushing:
+
+```bash
+helm template fleet-dispatch apps/fleet-dispatch-helm \
+  -f apps/fleet-dispatch-helm/values-production.yaml \
+  --namespace fleet-dispatch | kubeconform -strict -summary
+```
+
+This repository does not currently contain an in-repository CI workflow, so run
+these checks locally before pushing.
 
 ## Updating an application image
 
@@ -198,13 +215,14 @@ The application CI currently pushes images tagged with the source commit SHA.
 Promote a build through Git instead of calling `kubectl set image`:
 
 1. Confirm both required image tags exist in GAR.
-2. Update `newTag` for the relevant image in the production overlay.
+2. Update `backend.image.tag` and/or `frontend.image.tag` in
+   `apps/fleet-dispatch-helm/values-production.yaml`.
 3. Open and merge a pull request in the GitOps repository.
 4. Observe the Argo CD Application become `Synced` and `Healthy`.
 
-A later CI improvement can open this pull request automatically. It should not
-write directly to the cluster and should not replace immutable tags with
-`latest`.
+The application repository's image-promotion automation must target those Helm
+value paths instead of the removed Kustomize `images[].newTag` fields. It should
+not write directly to the cluster or replace immutable tags with `latest`.
 
 ## Domain and TLS
 
@@ -229,9 +247,9 @@ When changing the DNS-01 solver, temporarily set the Ingress annotation to
 `kubectl describe clusterissuer`, the Certificate resources, and cert-manager
 controller logs when a DNS challenge does not become ready.
 
-`APP_TRUSTED_HOSTS` in `apps/fleet-dispatch/base/configmap.yaml` is still a
-wildcard and should be restricted to `docker-linhdt.site` in a separate
-application configuration change.
+`backend.config.APP_TRUSTED_HOSTS` in `apps/fleet-dispatch-helm/values.yaml` is
+still a wildcard and should be restricted to `docker-linhdt.site` in a separate,
+tested application configuration change.
 
 ## Horizontal Pod Autoscaler (backend)
 
@@ -248,7 +266,7 @@ The backend Deployment is configured with a HorizontalPodAutoscaler (HPA) using
 
 The HPA target CPU utilization is calculated against the backend's
 `requests.cpu` (100m). The frontend is **not** auto-scaled — its single replica
-is managed by the Kustomize production overlay.
+is configured in the production Helm values.
 
 ### Requirements
 
@@ -258,7 +276,7 @@ is managed by the Kustomize production overlay.
   kubectl edit configmap -n kube-system metrics-server-config
   ```
   or check that `kubectl top nodes` returns data.
-- The backend Deployment must have a CPU `request` set (100m in base).
+- The backend Deployment must have a CPU `request` set (100m in the chart defaults).
 
 ### Verification
 
@@ -270,8 +288,8 @@ kubectl -n fleet-dispatch top pod backend-<hash>       # current CPU/Mem
 
 ### Argo CD integration
 
-Because Argo CD manages `Deployment.spec.replicas` through Kustomize but HPA
-needs to modify it at runtime, the `applications/fleet-dispatch.yaml` manifest
+Because Argo CD manages `Deployment.spec.replicas` through Helm but HPA needs
+to modify it at runtime, the `applications/fleet-dispatch.yaml` manifest
 includes an `ignoreDifferences` rule that prevents Argo CD from detecting drift
 on the `backend` Deployment's replica count. The sync option
 `RespectIgnoreDifferences=true` ensures self-heal does not overwrite HPA-driven

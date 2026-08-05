@@ -1,0 +1,31 @@
+{{- if .Values.podDisruptionBudgets.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "fleet-dispatch.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudgets.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "fleet-dispatch.backendSelectorLabels" . | nindent 6 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "fleet-dispatch.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudgets.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "fleet-dispatch.frontendSelectorLabels" . | nindent 6 }}
+{{- end }}

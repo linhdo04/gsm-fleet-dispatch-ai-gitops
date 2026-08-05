@@ -1,11 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend
+  name: backend
+  namespace: {{ .Release.Namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "fleet-dispatch.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.backend.replicas }}
   revisionHistoryLimit: 3
   strategy:
     type: RollingUpdate
@@ -14,12 +17,12 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: frontend
+      {{- include "fleet-dispatch.backendSelectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: frontend
-        app.kubernetes.io/component: web
+        {{- include "fleet-dispatch.labels" . | nindent 8 }}
+        {{- include "fleet-dispatch.backendSelectorLabels" . | nindent 8 }}
     spec:
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
@@ -28,60 +31,48 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: frontend
-          image: fleet-dispatch-frontend
-          imagePullPolicy: IfNotPresent
+        - name: backend
+          image: {{ include "fleet-dispatch.image" (list .Values.backend "backend") | quote }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: {{ .Values.backend.port }}
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: fleet-dispatch-backend-config
           startupProbe:
             httpGet:
-              path: /healthz
+              path: /api/v1/health/live
               port: http
             periodSeconds: 5
             failureThreshold: 12
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /api/v1/health/live
               port: http
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /api/v1/health/ready
               port: http
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 250m
-              memory: 256Mi
-          volumeMounts:
-            - name: nginx-tmp
-              mountPath: /var/lib/nginx/tmp
-            - name: nginx-cache
-              mountPath: /var/cache/nginx
-            - name: nginx-run
-              mountPath: /run/nginx
+            {{- toYaml .Values.backend.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
       volumes:
-        - name: nginx-tmp
+        - name: tmp
           emptyDir:
-            sizeLimit: 16Mi
-        - name: nginx-cache
-          emptyDir:
-            sizeLimit: 32Mi
-        - name: nginx-run
-          emptyDir:
-            sizeLimit: 8Mi
+            sizeLimit: 64Mi
