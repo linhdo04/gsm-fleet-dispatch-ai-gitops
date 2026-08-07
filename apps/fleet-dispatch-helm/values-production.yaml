@@ -1,7 +1,7 @@
 backend:
   image:
     repository: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/backend
-    tag: 894fc0ed372bc55f0f6cd582cd52306faff73aa5
+    tag: 0aa13169b4e7906594ace7333545a579b4cb6fe5
 frontend:
   image:
     repository: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/frontend
