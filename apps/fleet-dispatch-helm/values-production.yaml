@@ -5,7 +5,7 @@ backend:
 frontend:
   image:
     repository: asia-southeast1-docker.pkg.dev/c2-app-501203/fleet-dispatch-images/frontend
-    tag: 0aa13169b4e7906594ace7333545a579b4cb6fe5
+    tag: 16b7774d553fa248d7ad2ec214a7cef0f30921ae
   replicas: 1
 ingress:
   host: docker-linhdt.site
